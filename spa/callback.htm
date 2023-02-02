@@ -1,0 +1,132 @@
+<html>
+<head>
+<style>
+input[type=text] {
+  width: 500px;
+}
+textarea {
+  width: 1000px;
+  height: 150px;
+}
+</style>
+<title>SPA Demo</title>
+</head>
+
+<body>
+
+<p>SPA Callback Page</p>
+
+<table>
+<tr>
+<td>Token Endpoint</td>
+<td><input type="text" id="token_ep" value="https://mercury.authgearapps.com/oauth2/token"></td>
+</tr><tr>
+<td>Client ID</td>
+<td><input type="text" id="client_id" name="client_id" value="4aeffa8d9cbf5ca5"></td>
+</tr><tr>
+<td>Redirect URI</td>
+<td><input type="text" id="redirect_uri" name="redirect_uri" value="http://localhost/callback.htm"></td>
+</tr><tr>
+<td>Auth Code</td>
+<td><input type="text" id="code" name="code" value=""></td>
+</tr><tr>
+<td>Code Verifier</td>
+<td><input type="text" id="code_verifier" name="code_verifier" value=""></td>
+</tr><tr>
+<td>State</td>
+<td><input type="text" id="state" name="state" value=""></td>
+</tr>
+<tr>
+<td><input type="button" id="getToken" onClick="getToken()" value="Get Token"></td>
+</tr><tr>
+<td>Access Token</td>
+<td><textarea id="access_token" name="access_token" value=""></textarea></td>
+</tr><tr>
+<td>Refresh Token</td>
+<td><input type="text" id="refresh_token" name="refresh_token" value=""></td>
+</tr><tr>
+<td>ID Token</td>
+<td><textarea id="id_token" name="id_token" value=""></textarea></td>
+</tr>
+</table>
+
+<script>
+
+const params = new Proxy(new URLSearchParams(window.location.search), {
+  get: (searchParams, prop) => searchParams.get(prop),
+});
+
+function getCookie(name) {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop().split(';').shift();
+}
+
+function getParams() {
+  document.getElementById("state").value = params.state;
+  document.getElementById("code").value = params.code;
+  document.getElementById("code_verifier").value = getCookie('code_verifier');
+}
+
+async function getToken() {
+
+	if (getCookie('state') != document.getElementById("state").value) {
+		alert('State value not match! Abort token request.');
+		console.log($document.cookie);
+		return;
+	}
+
+	try {
+		let url = document.getElementById("token_ep").value;
+		let payload = {
+				grant_type: "authorization_code",
+				client_id: document.getElementById("client_id").value,
+				redirect_uri: document.getElementById("redirect_uri").value,
+				code: document.getElementById("code").value,
+				code_verifier: document.getElementById("code_verifier").value
+			}
+		let formBody = [];
+		for (var property in payload) {
+		  var encodedKey = encodeURIComponent(property);
+		  var encodedValue = encodeURIComponent(payload[property]);
+		  formBody.push(encodedKey + "=" + encodedValue);
+		}
+		formBody = formBody.join("&");
+
+		console.log("formBody...");
+		console.log(formBody);
+		const config = {
+			method: 'POST',
+			headers: {
+				'Accept': 'application/json',
+				'Content-Type': 'application/x-www-form-urlencoded',
+			},
+			body: formBody
+		}
+		const response = await fetch(url, config);
+		const json = await response.json()
+		console.log("token response in json...");
+		console.log(json);
+		
+		if (response.ok) {
+
+			document.getElementById("access_token").value = json.access_token;
+			document.getElementById("refresh_token").value = json.refresh_token;
+			document.getElementById("id_token").value = json.id_token;
+
+			return json;
+		} else {
+			//
+		}
+	} catch (error) {
+			//
+	}
+}
+
+
+window.onload = getParams;	
+
+</script>
+
+</body>
+</html>

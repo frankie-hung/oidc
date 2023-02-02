@@ -1,0 +1,127 @@
+<html>
+<head>
+<style>
+input[type=text] {
+  width: 500px;
+}
+</style>
+<title>SPA Demo</title>
+</head>
+
+<body>
+
+<p>SPA Demo</p>
+
+<form id="auth_request" action="">
+<table>
+<tr>
+<td>Authorization Endpoint</td>
+<td><input type="text" id="authorize_ep" value="https://mercury.authgearapps.com/oauth2/authorize"></td>
+</tr><tr>
+<td>Client ID</td>
+<td><input type="text" id="client_id" name="client_id" value="4aeffa8d9cbf5ca5"></td>
+</tr><tr>
+<td>Redirect URI</td>
+<td><input type="text" id="redirect_uri" name="redirect_uri" value="http://localhost/callback.htm"></td>
+</tr><tr>
+<td>Response Type</td>
+<td><input type="text" id="response_type" name="response_type" value="code"></td>
+</tr><tr>
+<td>Code Verifier</td>
+<td><input type="text" id="code_verifier" name="code_verifier" value=""> <input type="button" onClick="getCodeVerifier()" value="Re-generate"></td>
+</tr><tr>
+<td>Code Challenge</td>
+<td><input type="text" id="code_challenge" name="code_challenge" value=""> <input type="button" onClick="getCodeChallenge()" value="Calc from Verifier"></td>
+</tr><tr>
+<td>State</td>
+<td><input type="text" id="state" name="state" value=""></td>
+</tr><tr>
+<td>Scope</td>
+<td><input type="text" id="scope" name="scope" value="openid offline_access"></td>
+</tr><tr>
+<td>Code Challenge Method</td>
+<td><input type="text" id="code_challenge_method" name="code_challenge_method" value="S256"></td>
+</tr>
+</table>
+<input type="button" id="login" onClick="submitForm()" value="Login"></td>
+</form>
+
+<script>
+    // GENERATING CODE VERIFIER
+    function dec2hex(dec) {
+      return ("0" + dec.toString(16)).substr(-2);
+    }
+    function generateCodeVerifier() {
+      var array = new Uint32Array(56 / 2);
+      window.crypto.getRandomValues(array);
+      return Array.from(array, dec2hex).join("");
+    }
+    function getCodeVerifier() {
+      document.getElementById("code_verifier").value = generateCodeVerifier();
+    }
+
+    // GENERATING CODE CHALLENGE FROM VERIFIER
+    function sha256(plain) {
+      // returns promise ArrayBuffer
+      const encoder = new TextEncoder();
+      const data = encoder.encode(plain);
+      return window.crypto.subtle.digest("SHA-256", data);
+    }
+
+    function base64urlencode(a) {
+      var str = "";
+      var bytes = new Uint8Array(a);
+      var len = bytes.byteLength;
+      for (var i = 0; i < len; i++) {
+        str += String.fromCharCode(bytes[i]);
+      }
+      return btoa(str)
+        .replace(/\+/g, "-")
+        .replace(/\//g, "_")
+        .replace(/=+$/, "");
+    }
+
+    async function generateCodeChallengeFromVerifier(v) {
+      var hashed = await sha256(v);
+      var base64encoded = base64urlencode(hashed);
+      return base64encoded;
+    }
+	
+    async function getCodeChallenge() {
+      let codeVerifier = document.getElementById("code_verifier").value;
+      try {
+        let code_challenge = await generateCodeChallengeFromVerifier(
+          codeVerifier
+        );
+        document.getElementById("code_challenge").value = code_challenge;
+      } catch (e) {
+        document.getElementById("code_challenge").value = JSON.stringify(e);
+      }
+    }
+	
+	function setCookie(cname, cvalue, exdays) {
+		const d = new Date();
+		d.setTime(d.getTime() + (exdays*24*60*60*1000));
+		let expires = "expires="+ d.toUTCString();
+		document.cookie = cname + "=" + cvalue + ";" + expires + ";path=/";
+	}
+	
+	function submitForm() {
+		// save code_verifier and state in browser cookie for callback page use
+		document.getElementById("auth_request").action = document.getElementById("authorize_ep").value;		
+		setCookie("code_verifier", document.getElementById("code_verifier").value, 1);
+		setCookie("state", document.getElementById("state").value, 1);
+		document.getElementById("auth_request").submit();
+	}
+	
+	function onLoad() {
+		getCodeVerifier();
+		getCodeChallenge();
+		document.getElementById("state").value = generateCodeVerifier().slice(0,10);
+	}
+	
+	window.onload = onLoad;
+</script>
+
+</body>
+</html>
